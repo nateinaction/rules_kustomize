@@ -114,6 +114,7 @@ def kustomize_image(
         image_name,
         new_image_name,
         image_digest,
+        visibility = None,
     ):
     """Templates a file that can be appended to a kustomization yaml to replace an image.
 
@@ -121,8 +122,13 @@ def kustomize_image(
       name: A unique name for this rule.
       image_name: The name of the image to be replaced.
       new_image_name: The name of the image to replace it with.
-      image_digest: The digest of the new image.
+      image_digest: A label pointed to a file containing the digest of the new image.
+      visibility: The visibility of this rule.
     """
+    kwargs = {}
+    if visibility:
+        kwargs["visibility"] = visibility
+
     native.genrule(
         name = name,
         srcs = [],
@@ -131,9 +137,9 @@ def kustomize_image(
             "$(location @com_benchsci_rules_kustomize//:create_image_yaml_partial)",
             image_name,
             new_image_name,
-            image_digest,
+            "$$(cat '$(location {})')".format(image_digest),
             "> $@"
         ]),
-        tools = ["@com_benchsci_rules_kustomize//:create_image_yaml_partial"],
-        visibility = ["//visibility:public"],
+        tools = ["@com_benchsci_rules_kustomize//:create_image_yaml_partial", image_digest],
+        **kwargs
     )

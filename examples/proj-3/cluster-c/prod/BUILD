@@ -1,12 +1,5 @@
-load("@com_benchsci_rules_kustomize//:defs.bzl", "kustomize_image", "kustomization")
+load("@com_benchsci_rules_kustomize//:defs.bzl", "kustomization")
 load("@bazel_tools//tools/build_rules:test_rules.bzl", "file_test")
-
-kustomize_image(
-    name = "echoserver",
-    image_name = "k8s.gcr.io/echoserver",
-    new_image_name = "docker.io/myimage",
-    image_digest = "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-)
 
 kustomization(
     name = "prod",
@@ -15,7 +8,7 @@ kustomization(
         "//base/echoapp",
     ],
     images = [
-        ":echoserver",
+        "//image:echoserver",
     ],
 )
 
@@ -28,7 +21,7 @@ metadata:
   namespace: prod
 spec:
   containers:
-  - image: docker.io/myimage@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+  - image: ghcr.io/nateinaction/rules_kustomize-test-image@sha256:b5160586d347d93fc5c1a6fed1f43fc307b6f10a9bc49627ac093c76a9f2f04b
     name: echo
 """
 
