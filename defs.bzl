@@ -109,29 +109,31 @@ def kustomization(
         **kwargs
     )
 
-# def kustomize_image(
-#         name,
-#         image_name,
-#         new_image_name,
-#         image_digest,
-#     ):
-#     """Templates a file that can be appended to a kustomization yaml to replace an image.
+def kustomize_image(
+        name,
+        image_name,
+        new_image_name,
+        image_digest,
+    ):
+    """Templates a file that can be appended to a kustomization yaml to replace an image.
 
-#     name: A unique name for this rule.
-#     image_name: The name of the image to be replaced.
-#     new_image_name: The name of the image to replace it with.
-#     image_digest: The digest of the new image.
-#     """
-#     native.genrule(
-#         name = name + ".kustomize_image",
-#         srcs = [],
-#         outs = [name + ".yaml.partial"],
-#         cmd = " ".join([
-#             "$(location @com_benchsci_rules_kustomize//:create_image_yaml_partial)",
-#             image_name,
-#             new_image_name,
-#             image_digest,
-#         ]),
-#         tools = ["@com_benchsci_rules_kustomize//:create_image_yaml_partial"],
-#         visibility = ["//visibility:public"],
-#     )
+    Args:
+      name: A unique name for this rule.
+      image_name: The name of the image to be replaced.
+      new_image_name: The name of the image to replace it with.
+      image_digest: The digest of the new image.
+    """
+    native.genrule(
+        name = name,
+        srcs = [],
+        outs = [name + ".yaml.partial"],
+        cmd = " ".join([
+            "$(location @com_benchsci_rules_kustomize//:create_image_yaml_partial)",
+            image_name,
+            new_image_name,
+            image_digest,
+            "> $@"
+        ]),
+        tools = ["@com_benchsci_rules_kustomize//:create_image_yaml_partial"],
+        visibility = ["//visibility:public"],
+    )
