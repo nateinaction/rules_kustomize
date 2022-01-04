@@ -1,18 +1,25 @@
-package(default_visibility = ["//visibility:public"])
-
-sh_library(
-    name = "fixgolden",
-    srcs = ["fixgolden.sh"],
-)
-
 filegroup(
     name = "exec",
     srcs = ["exec.sh"],
+    visibility = ["//visibility:public"]
 )
 
 filegroup(
     name = "execpwd",
     srcs = ["execpwd.sh"],
+    visibility = ["//visibility:public"]
+)
+
+filegroup(
+    name = "create_image_yaml_partial",
+    srcs = ["create_image_yaml_partial.sh"],
+    visibility = ["//visibility:public"]
+)
+
+filegroup(
+    name = "create_kustomization_yaml",
+    srcs = ["create_kustomization_yaml.sh"],
+    visibility = ["//visibility:public"]
 )
 
 sh_binary(
@@ -20,28 +27,7 @@ sh_binary(
     srcs = [":execpwd"],
     args = ["$(location @kustomize//:file)"],
     data = ["@kustomize//:file"],
-)
-
-sh_binary(
-    name = "kubectl_bin",
-    srcs = select({
-        "@bazel_tools//src/conditions:linux_x86_64": ["@kubectl_linux//file"],
-        "@bazel_tools//src/conditions:darwin": ["@kubectl_darwin//file"],
-    }),
-)
-
-sh_binary(
-    name = "kubectl",
-    srcs = [":execpwd"],
-    args = ["$(location :kubectl_bin)"],
-    data = [":kubectl_bin"],
-)
-
-sh_binary(
-    name = "gcloud",
-    srcs = [":execpwd"],
-    args = ["$(location @gcloud)"],
-    data = ["@gcloud"],
+    visibility = ["//visibility:public"]
 )
 
 # Exported for documentation (see //tools:docs).

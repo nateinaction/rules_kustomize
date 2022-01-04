@@ -1,11 +1,9 @@
 workspace(name = "com_benchsci_rules_kustomize")
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
-load("@//:workspace.bzl", "download_gcloud_deps", "download_kustomize_deps")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@//:workspace.bzl", "download_kustomize_deps")
 
 download_kustomize_deps()
-
-download_gcloud_deps()
 
 http_archive(
     name = "io_bazel_stardoc",

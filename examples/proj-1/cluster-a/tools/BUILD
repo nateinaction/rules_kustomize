@@ -4,7 +4,6 @@ load("@bazel_tools//tools/build_rules:test_rules.bzl", "file_test")
 kustomization(
     name = "tools",
     srcs = glob(["**/*.yaml"]),
-    out = "tools.yaml",
 )
 
 golden = """apiVersion: v1

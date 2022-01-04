@@ -1,0 +1,22 @@
+name: ci
+on:
+  push:
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          set -eux
+
+          # Enforce documentation is up-to-date.
+          bazel build //docs && cat bazel-bin/docs/defs.md > docs/defs.md
+          git diff-index --name-status HEAD
+          git diff
+          git diff-index --quiet HEAD
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: bazel --output_base=${GITHUB_ACTION_PATH}/tmp/bazel test ...
+        working-directory: examples

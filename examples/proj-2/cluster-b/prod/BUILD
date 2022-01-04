@@ -7,8 +7,6 @@ kustomization(
         "kustomization.yaml",
         "//base/echoapp",
     ],
-    out = "prod-b.yaml",
-    golden = "golden.yaml",
 )
 
 golden = """apiVersion: v1

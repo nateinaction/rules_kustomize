@@ -1,4 +1,5 @@
 # Copyright 2021 BenchSci Analytics Inc.
+# Copyright 2021 Nate Gay
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,119 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def kubeconfig():
-    """Macro for genrule target named "kubeconfig" intended to uniquely identify a Kubernetes cluster.
-
-    This macro creates two rules: "kubeconfig" and "kubectl".  The latter is a
-    convenience run rule that invokes kubectl with the sibling configuration.
-
-    These rules are meant to be set in the `cfg` parameter of the `apply` rule
-    documented below.
-    """
-
-    # kubectl has a nasty habbit of re-writing the kubeconfig in the source
-    # tree. Clone the contents into a generated file so the source tree isn't
-    # mutated.
-    native.genrule(
-        name = "kubeconfig",
-        srcs = ["kubeconfig.yaml"],
-        outs = ["kubeconfig_copy.yaml"],
-        cmd = "cat '$(location :kubeconfig.yaml)' > $@",
-        # This visibility is intended to prevent accidental usage outside this
-        # package and subpackages.  DO NOT CHANGE.
-        visibility = [":__subpackages__"],
-    )
-
-    native.sh_binary(
-        name = "kubectl",
-        srcs = ["@com_benchsci_rules_kustomize//:exec"],
-        data = [
-            ":kubeconfig",
-            "@com_benchsci_rules_kustomize//:kubectl_bin",
-        ],
-        args = [
-            "$(location @com_benchsci_rules_kustomize//:kubectl_bin)",
-            "--kubeconfig=$(location :kubeconfig)",
-        ],
-        visibility = ["//visibility:public"],
-    )
-
-def _base_cmd(cfg, src, namespace, tags, subcmd, *extra_args):
-    args = [
-        "$(location @com_benchsci_rules_kustomize//:kubectl_bin)",
-        "--kubeconfig=$(location {})".format(cfg),
-        subcmd,
-        "-f=$(location {})".format(src),
-    ]
-    if namespace != None:
-        args += ["--namespace=" + namespace]
-
-    args += list(extra_args)
-
-    return dict(
-        srcs = ["@com_benchsci_rules_kustomize//:exec"],
-        data = [
-            "@com_benchsci_rules_kustomize//:kubectl_bin",
-            cfg,
-            src,
-        ],
-        tags = tags,
-        args = args,
-        # Required to allow aliasing run targets.
-        visibility = ["//visibility:public"],
-    )
-
-def apply(name, src, cfg, namespace = None, tags = None):
-    """Performs a dry-run `apply` via `kubectl` against a resource file.
-
-    This is intended to be combined with the output of a `kustomization` rule
-    though `src` can reference any file accepted by `kubectl apply`.  This
-    macro defines two additional rules:
-
-    * `<name>.run` actually performs the apply.
-    * `<name>.diff` outputs the diff against the existing configuration.
-
-    See:
-
-    * https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#apply
-    * https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#diff
-
-    Args:
-      name: A unique name for this rule.
-      src: A label.
-      cfg: A label referencing a kubeconfig file pointing to desired target
-        cluster.
-      namespace: Optionally restrict operations to a specific namespace in the
-        cluster defined by `cfg`.
-      tags: Sets tags on the rule.  The `requires-network` tag must be among
-        the tags.
-    """
-    if tags == None:
-        tags = ["requires-network"]
-    if "requires-network" not in tags:
-        fail("Apply target tags must contain 'requires-network'.")
-
-    native.sh_binary(name = name, **_base_cmd(cfg, src, namespace, tags, "apply", "--dry-run=server"))
-    native.sh_binary(name = name + ".run", **_base_cmd(cfg, src, namespace, tags, "apply"))
-    native.sh_binary(name = name + ".diff", **_base_cmd(cfg, src, namespace, tags, "diff"))
-
 def kustomization(
         name,
         srcs,
-        out,
-        golden = None,
+        images = [],
         visibility = None,
-        autofix = True,
-        plugin_dir = None,
         tags = ["block-network"]):
     """Builds a kustomization defined by the input srcs.
 
     The output is a YAML multi-doc comprised of all the resources defined by
-    the customization.  This macro will create additional rules with the
-    following suffixes:
-
-    * `<name>.autofix` is a run target generated if `golden` is set.  It synchronizes the output of
-    * `<name>.golden` is a test target generated if `golden` is set.
+    the customization.
 
     See:
 
@@ -139,14 +37,7 @@ def kustomization(
         Note that the Bazel glob() function can be used to specify which source
         files to include and which to exclude, e.g.
         `glob(["*.yaml"], exclude=["golden.yaml"])`.
-      out: The name of the output file.
-      golden: Identify a file containing the expected output of the build.
-        Defining this parameter creates a test rule named `.golden` that
-        verifies the output is identical to the contents of the named file.
-        Golden files are a materialized view of resources and can be useful if
-        your kustomizations have many transitive dependencies.
-      autofix: Toggle creation of a `.autofix` rule if `golden` is also set.
-      plugin_dir: TODO
+      images: A list of kustomize_image labels to include in the kustomization.
       visibility: The visibility of this rule.
       tags: Sets tags on the rule.  The `block-network` tag is strongly
         recommended (but not enforced) to ensure hermeticity and
@@ -162,11 +53,29 @@ def kustomization(
         **kwargs
     )
 
-    # Used only to be able to generate a path to the file below.
+    # Used only to be able to generate a path to the kustomization file.
     native.filegroup(
-        name = name + ".main",
+        name = name + ".kustomization",
         srcs = ["kustomization.yaml"],
         visibility = ["//visibility:private"],
+    )
+
+    # Create a kustomization file and include name.kustomization as a resource
+    images_paths = ",".join(["$(location {})".format(label) for label in images])
+    native.genrule(
+        name = name + ".new_kustomization",
+        srcs = [
+            name + ".kustomization",
+        ],
+        outs = ["new/kustomization.yaml"],
+        cmd = " ".join([
+            "$(location @com_benchsci_rules_kustomize//:create_kustomization_yaml)",
+            "$(OUTS)",
+            "$(location :{}.kustomization)".format(name),
+            "'{}'".format(images_paths),
+            "> \"$@\"",
+        ]),
+        tools = ["@com_benchsci_rules_kustomize//:create_kustomization_yaml"] + images,
     )
 
     build_cmd = [
@@ -177,18 +86,17 @@ def kustomization(
         # disallow fetches.
         "--load-restrictor=LoadRestrictionsNone",
     ]
-    if plugin_dir:
-        build_cmd = ["KUSTOMIZE_PLUGIN_HOME=$$( realpath {} )".format(plugin_dir)] + build_cmd + ["--enable_alpha_plugins"]
 
     native.genrule(
         name = name,
         srcs = [
             ":" + name + ".srcs",
-            ":" + name + ".main",
+            ":" + name + ".kustomization",
+            ":" + name + ".new_kustomization",
         ],
-        outs = [out],
+        outs = [name + ".yaml"],
         cmd = " ".join(build_cmd + [
-            "$$( dirname '$(location :{}.main)' )".format(name),
+            "$$( dirname '$(location :{}.new_kustomization)' )".format(name),
             "> \"$@\"",
         ]),
         # Ideally we'd use something like:
@@ -201,25 +109,29 @@ def kustomization(
         **kwargs
     )
 
-    if golden != None:
-        if autofix:
-            native.sh_binary(
-                name = name + ".autofix",
-                srcs = ["@com_benchsci_rules_kustomize//:fixgolden"],
-                data = [":" + name],
-                args = ["$(location :{})".format(name), golden],
-                visibility = ["//visibility:private"],
-            )
-        native.sh_test(
-            name = name + ".golden",
-            srcs = ["@com_benchsci_rules_kustomize//:exec"],
-            data = [":" + name, golden],
-            args = [
-                "diff",
-                "-I",
-                "^#.*",
-                "$(location :{})".format(name),
-                "$(location {})".format(golden),
-            ],
-            visibility = ["//visibility:private"],
-        )
+# def kustomize_image(
+#         name,
+#         image_name,
+#         new_image_name,
+#         image_digest,
+#     ):
+#     """Templates a file that can be appended to a kustomization yaml to replace an image.
+
+#     name: A unique name for this rule.
+#     image_name: The name of the image to be replaced.
+#     new_image_name: The name of the image to replace it with.
+#     image_digest: The digest of the new image.
+#     """
+#     native.genrule(
+#         name = name + ".kustomize_image",
+#         srcs = [],
+#         outs = [name + ".yaml.partial"],
+#         cmd = " ".join([
+#             "$(location @com_benchsci_rules_kustomize//:create_image_yaml_partial)",
+#             image_name,
+#             new_image_name,
+#             image_digest,
+#         ]),
+#         tools = ["@com_benchsci_rules_kustomize//:create_image_yaml_partial"],
+#         visibility = ["//visibility:public"],
+#     )

@@ -29,11 +29,6 @@ http_archive(
 load("@com_benchsci_rules_kustomize//:workspace.bzl", "download_kustomize_deps")
 
 download_kustomize_deps()
-
-# Optional for some handy GKE related utilities.
-load("@com_benchsci_rules_kustomize//:workspace.bzl", "download_gcloud_deps")
-
-download_gcloud_deps()
 ```
 
 These rules make a best-effort attempt to track the stable releases of its
@@ -77,15 +72,13 @@ http_archive_by_os(
 
 The underlying tools that the macros use are exposed as `run` commands::
 
-    bazel run @com_benchsci_rules_kustomize//:kubectl
     bazel run @com_benchsci_rules_kustomize//:kustomize
-    bazel run @com_benchsci_rules_kustomize//:gcloud
 
 You can alias these tools into your own Bazel repository via
 [`alias`](https://docs.bazel.build/versions/master/be/general.html#alias).  For
 example:
 
     alias(
-        name = "kubectl",
-        actual = "@com_benchsci_rules_kustomize//:kubectl",
+        name = "kustomize",
+        actual = "@com_benchsci_rules_kustomize//:kustomize",
     )
