@@ -1,4 +1,5 @@
 # rules_kustomize
+[![ci](https://github.com/nateinaction/rules_kustomize/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/nateinaction/rules_kustomize/actions/workflows/ci.yaml)
 
 The rules define a collection of Bazel macros for working with
 [kustomize](https://kustomize.io/).  These rules are intentionally lightweight
