@@ -16,7 +16,6 @@ new_image_name = registry + "/" + repository
 kustomize_image(
     name = "echoserver",
     image_name = "k8s.gcr.io/echoserver",
-    new_image_name = new_image_name,
-    image_digest = ":push.digest",
+    image_details = ":push",
     visibility = ["//visibility:public"],
 )

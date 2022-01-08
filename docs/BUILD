@@ -1,8 +1,16 @@
 load("@io_bazel_stardoc//stardoc:stardoc.bzl", "stardoc")
 
 stardoc(
-    name = "docs",
-    out = "defs.md",
-    input = "//:defs.bzl",
+    name = "kustomization",
+    out = "kustomization.md",
+    input = "//:kustomization.bzl",
+    visibility = ["//visibility:public"],
+)
+
+stardoc(
+    name = "kustomize_image",
+    out = "kustomize_image.md",
+    deps = ["@bazel_skylib//lib:dicts", "@io_bazel_rules_docker//container:providers"],
+    input = "//:kustomize_image.bzl",
     visibility = ["//visibility:public"],
 )

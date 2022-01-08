@@ -31,4 +31,4 @@ sh_binary(
 )
 
 # Exported for documentation (see //tools:docs).
-exports_files(["defs.bzl"])
+exports_files(glob(["**/*.bzl"]))

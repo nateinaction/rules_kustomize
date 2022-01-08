@@ -10,7 +10,7 @@ jobs:
           set -eux
 
           # Enforce documentation is up-to-date.
-          bazel build //docs && cat bazel-bin/docs/defs.md > docs/defs.md
+          bazel build //docs/... && cp bazel-bin/docs/*.md docs
           git diff-index --name-status HEAD
           git diff
           git diff-index --quiet HEAD
