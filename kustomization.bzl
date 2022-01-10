@@ -15,98 +15,91 @@
 
 "rules_kustomize"
 
-def kustomization(
-        name,
-        srcs,
-        images = [],
-        visibility = None,
-        tags = ["block-network"]):
-    """Builds a kustomization defined by the input srcs.
+load("@bazel_skylib//lib:dicts.bzl", "dicts")
+load("@bazel_skylib//lib:paths.bzl", "paths")
+load("@bazel_skylib//lib:shell.bzl", "shell")
+load("//:kustomize_image.bzl", "ImageInfo")
 
-    The output is a YAML multi-doc comprised of all the resources defined by
-    the customization.
-
-    See:
-
-    * https://kubectl.docs.kubernetes.io/references/kustomize/glossary/#kustomization
-    * https://kubectl.docs.kubernetes.io/references/kustomize/glossary/#kustomization-root
-
-    Args:
-      name: A unique name for this rule.
-      srcs: Source inputs to run `kustomize build` against.  These are any
-        valid Bazel labels representing.
-
-        Note that the Bazel glob() function can be used to specify which source
-        files to include and which to exclude, e.g.
-        `glob(["*.yaml"], exclude=["golden.yaml"])`.
-      images: A list of kustomize_image labels to include in the kustomization.
-      visibility: The visibility of this rule.
-      tags: Sets tags on the rule.  The `block-network` tag is strongly
-        recommended (but not enforced) to ensure hermeticity and
-        reproducibility.
-    """
-    kwargs = {}
-    if visibility:
-        kwargs["visibility"] = visibility
-
-    native.filegroup(
-        name = name + ".srcs",
-        srcs = srcs,
-        **kwargs
+def _impl(ctx):
+    # Create unhydrated yaml
+    unhydrated_file = ctx.actions.declare_file('new/{}-unhydrated.yaml'.format(ctx.attr.name))
+    unhydrated_dir = paths.dirname(ctx.attr.kustomization_yaml.files.to_list()[0].path)
+    unhydrated_args = ctx.actions.args()
+    unhydrated_args.add('build', unhydrated_dir)
+    unhydrated_args.add('--load-restrictor', 'LoadRestrictionsNone')
+    unhydrated_args.add('--output', unhydrated_file.path)
+    ctx.actions.run(
+        inputs = [file for target in ctx.attr.srcs for file in target.files.to_list()],
+        outputs = [unhydrated_file],
+        arguments = [unhydrated_args],
+        executable = ctx.executable._kustomize,
     )
 
-    # Used only to be able to generate a path to the kustomization file.
-    native.filegroup(
-        name = name + ".kustomization",
-        srcs = ["kustomization.yaml"],
-        visibility = ["//visibility:private"],
-    )
-
-    # Create a kustomization file and include name.kustomization as a resource
-    images_paths = ",".join(["$(location {})".format(label) for label in images])
-    native.genrule(
-        name = name + ".new_kustomization",
-        srcs = [
-            name + ".kustomization",
-        ],
-        outs = ["new/kustomization.yaml"],
-        cmd = " ".join([
-            "$(location @com_benchsci_rules_kustomize//:create_kustomization_yaml)",
-            "$(OUTS)",
-            "$(location :{}.kustomization)".format(name),
-            "'{}'".format(images_paths),
-            "> \"$@\"",
-        ]),
-        tools = ["@com_benchsci_rules_kustomize//:create_kustomization_yaml"] + images,
-    )
-
-    build_cmd = [
-        "./$(location @kustomize//:file) ",
-        "build",
-        # This can be dangerous, but Bazel forces us to be explicit in
-        # defining dependencies and we use the "block-network" tag below to
-        # disallow fetches.
-        "--load-restrictor=LoadRestrictionsNone",
+    # Create kustomization.yaml
+    kustomization_file = ctx.actions.declare_file('new/kustomization.yaml')
+    yaml = [
+        'apiVersion: kustomize.config.k8s.io/v1beta1',
+        'kind: Kustomization',
+        'resources:',
+        '- {}'.format(paths.basename(unhydrated_file.path)),
     ]
-
-    native.genrule(
-        name = name,
-        srcs = [
-            ":" + name + ".srcs",
-            ":" + name + ".kustomization",
-            ":" + name + ".new_kustomization",
-        ],
-        outs = [name + ".yaml"],
-        cmd = " ".join(build_cmd + [
-            "$$( dirname '$(location :{}.new_kustomization)' )".format(name),
-            "> \"$@\"",
-        ]),
-        # Ideally we'd use something like:
-        #
-        #   kbin = "{}//:kustomize".format(native.repository_name())
-        #
-        # See https://github.com/bazelbuild/bazel/issues/4092
-        tools = ["@kustomize//:file"],
-        tags = tags,
-        **kwargs
+    if ctx.attr.images:
+        yaml.append('images:')
+        yaml.append('$(cat {})'.format(' '.join([shell.quote(image[ImageInfo].partial.path) for image in ctx.attr.images])))
+    formatted_yaml = '\n'.join(yaml)
+    ctx.actions.run_shell(
+        inputs = [image[ImageInfo].partial for image in ctx.attr.images],
+        outputs = [kustomization_file],
+        arguments = [],
+        command = 'printf "{}\n" > "{}"'.format(formatted_yaml, kustomization_file.path),
     )
+
+    # Create hydrated yaml
+    hydrated_args = ctx.actions.args()
+    hydrated_args.add('build', paths.dirname(kustomization_file.path))
+    hydrated_args.add('--load-restrictor', 'LoadRestrictionsNone')
+    hydrated_args.add('--output', ctx.outputs.hydrated.path)
+    ctx.actions.run(
+        inputs = [unhydrated_file, kustomization_file],
+        outputs = [ctx.outputs.hydrated],
+        arguments = [hydrated_args],
+        executable = ctx.executable._kustomize,
+    )
+
+kustomization_ = rule(
+    attrs = dicts.add({
+        'kustomization_yaml': attr.label(
+            doc = 'Kustomization yaml file to build',
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        'srcs': attr.label_list(
+            doc = 'Source inputs to run `kustomize build` against. Note that the Bazel glob() function can be used to specify which source files to include and which to exclude, e.g. `glob(["*.yaml"], exclude=["golden.yaml"])`.',
+            cfg = 'host',
+            mandatory = True,
+            allow_files = True,
+        ),
+        'images': attr.label_list(
+            doc = 'A list of kustomize_image labels.',
+            cfg = 'host',
+            mandatory = False,
+            allow_files = True,
+            providers = [ImageInfo]
+        ),
+        '_kustomize': attr.label(
+            default = '@kustomize//:file',
+            cfg = 'host',
+            executable = True,
+        )
+        # "tags": attr.list(
+        #     default = ["block-network"],
+        # )
+    }),
+    implementation = _impl,
+    outputs = {
+        'hydrated': '%{name}.yaml',
+    },
+)
+
+def kustomization(**kwargs):
+    kustomization_(**kwargs)

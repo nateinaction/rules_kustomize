@@ -17,7 +17,25 @@ kustomize_image_(<a href="#kustomize_image_-name">name</a>, <a href="#kustomize_
 | :-------------: | :-------------: | :-------------: | :-------------: | :-------------: |
 | name |  A unique name for this target.   | <a href="https://bazel.build/docs/build-ref.html#name">Name</a> | required |  |
 | image_details |  A label containing the container_push output for an image.   | <a href="https://bazel.build/docs/build-ref.html#labels">Label</a> | required |  |
-| image_name |  The name of the image to be replaced.   | String | required |  |
+| image_name |  The name of the image to be modified.   | String | optional | "" |
+
+
+<a name="#ImageInfo"></a>
+
+## ImageInfo
+
+<pre>
+ImageInfo(<a href="#ImageInfo-partial">partial</a>)
+</pre>
+
+Image modification information
+
+**FIELDS**
+
+
+| Name  | Description |
+| :-------------: | :-------------: |
+| partial |  A yaml file containing kustomize image replacement info    |
 
 
 <a name="#kustomize_image"></a>

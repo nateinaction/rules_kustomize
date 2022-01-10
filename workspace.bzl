@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""rules_kustomize"""
+
 load(":archive.bzl", "http_archive_by_os")
 
 def download_kustomize_deps():

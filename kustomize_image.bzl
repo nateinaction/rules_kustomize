@@ -17,34 +17,42 @@
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("@io_bazel_rules_docker//container:providers.bzl", "PushInfo")
 
+# https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/images/
+ImageInfo = provider(
+    doc = "Image modification information",
+    fields = {
+        "partial": "A yaml file containing kustomize image replacement info",
+    },
+)
+
 def _impl(ctx):
-    cmd = "\n".join([
-        "(",
-        'echo "- name: {}"'.format(ctx.attr.image_name),
-        'echo "  newName: {}/{}"'.format(ctx.attr.image_details[PushInfo].registry, ctx.attr.image_details[PushInfo].repository),
-        'echo "  newTag: {}"'.format(ctx.attr.image_details[PushInfo].tag),
-        'echo "  digest: $(cat $1)"',
-        ") > \"$2\"",
+    image_name = '{}/{}'.format(ctx.attr.image_details[PushInfo].registry, ctx.attr.image_details[PushInfo].repository)
+    output = '\n'.join([
+        '\\055 name: {}'.format(image_name if ctx.attr.image_name == '' else ctx.attr.image_name),
+        '  newName: {}'.format(image_name),
+        '  digest: $(cat {})'.format(ctx.attr.image_details[PushInfo].digest.path),
     ])
     ctx.actions.run_shell(
         inputs = [ctx.attr.image_details[PushInfo].digest],
         outputs = [ctx.outputs.partial],
-        arguments = [ctx.attr.image_details[PushInfo].digest.path, ctx.outputs.partial.path],
-        command = cmd,
+        arguments = [],
+        command = 'printf "{}\n" > "{}"'.format(output, ctx.outputs.partial.path),
     )
+    return [ImageInfo(partial = ctx.outputs.partial)]
 
 kustomize_image_ = rule(
     attrs = dicts.add({
-        "image_name": attr.string(
-            mandatory = True,
-            doc = "The name of the image to be replaced.",
-        ),
         "image_details": attr.label(
             doc = "A label containing the container_push output for an image.",
             cfg = "host",
             mandatory = True,
             allow_files = True,
             providers = [PushInfo]
+        ),
+        "image_name": attr.string(
+            mandatory = False,
+            default = "",
+            doc = "The name of the image to be modified.",
         ),
     }),
     implementation = _impl,

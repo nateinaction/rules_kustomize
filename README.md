@@ -21,13 +21,13 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 
 http_archive(
-    name = "com_benchsci_rules_kustomize",
+    name = "com_nateinaction_rules_kustomize",
     sha256 = "11d2e8fd9b7c0fd7a5611f1e28922bae9857b34f38f8c02f990a38697955678e",
     strip_prefix = "rules_kustomize-e27643c79f86a1546faf9e4d6eef75d1e10a57bc",
     urls = ["https://github.com/benchsci/rules_kustomize/archive/e27643c79f86a1546faf9e4d6eef75d1e10a57bc.zip"],
 )
 
-load("@com_benchsci_rules_kustomize//:workspace.bzl", "download_kustomize_deps")
+load("@com_nateinaction_rules_kustomize//:workspace.bzl", "download_kustomize_deps")
 
 download_kustomize_deps()
 ```
@@ -73,7 +73,7 @@ http_archive_by_os(
 
 The underlying tools that the macros use are exposed as `run` commands::
 
-    bazel run @com_benchsci_rules_kustomize//:kustomize
+    bazel run @com_nateinaction_rules_kustomize//:kustomize
 
 You can alias these tools into your own Bazel repository via
 [`alias`](https://docs.bazel.build/versions/master/be/general.html#alias).  For
@@ -81,5 +81,5 @@ example:
 
     alias(
         name = "kustomize",
-        actual = "@com_benchsci_rules_kustomize//:kustomize",
+        actual = "@com_nateinaction_rules_kustomize//:kustomize",
     )

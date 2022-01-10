@@ -1,8 +1,9 @@
-load("@com_benchsci_rules_kustomize//:defs.bzl", "kustomization")
+load("@com_nateinaction_rules_kustomize//:defs.bzl", "kustomization")
 load("@bazel_tools//tools/build_rules:test_rules.bzl", "file_test")
 
 kustomization(
     name = "tools",
+    kustomization_yaml = "kustomization.yaml",
     srcs = glob(["**/*.yaml"]),
 )
 

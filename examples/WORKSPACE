@@ -1,11 +1,11 @@
 workspace(name = "examples")
 
 local_repository(
-    name = "com_benchsci_rules_kustomize",
+    name = "com_nateinaction_rules_kustomize",
     path = "../",
 )
 
-load("@com_benchsci_rules_kustomize//:workspace.bzl", "download_kustomize_deps")
+load("@com_nateinaction_rules_kustomize//:workspace.bzl", "download_kustomize_deps")
 
 download_kustomize_deps()
 

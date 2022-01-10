@@ -6,3 +6,5 @@ spec:
   containers:
   - name: echo
     image: k8s.gcr.io/echoserver:1.4
+  - name: test
+    image: localhost:5000/rules_kustomize/test-image:testtag

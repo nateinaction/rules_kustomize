@@ -1,4 +1,4 @@
-workspace(name = "com_benchsci_rules_kustomize")
+workspace(name = "com_nateinaction_rules_kustomize")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@//:workspace.bzl", "download_kustomize_deps")
